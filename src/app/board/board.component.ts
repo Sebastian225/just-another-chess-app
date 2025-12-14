@@ -13,11 +13,14 @@ import { CommonModule } from '@angular/common';
 export class BoardComponent{
     constructor () {
         this.board = new Board();
+        this.resetHighlights();
     }
 
-    board: Board;
 
+    board: Board;
     readonly indices = Array.from({ length: 8 }, (_, i) => i);
+    draggedPiece: IPiece | null = null;
+    highlightedSqares: boolean[][] = Array(8).fill(null).map(() => Array(8).fill(false));
 
     getSquareColor(x: number, y: number): string {
         return (x + y) % 2 === 0 ? 'white' : 'black';
@@ -27,10 +30,19 @@ export class BoardComponent{
         return this.board.getPieceAt(x, y);
     }
 
-    draggedPiece: IPiece | null = null;
-
     onDragStart(event: DragEvent, x: number, y: number) {
         this.draggedPiece = this.board.getPieceAt(x, y);
+
+        if (!this.draggedPiece) {
+            return;
+        }
+        
+        const availableMoves = this.draggedPiece.getAvailableMoves(this.board);
+        for (let move of availableMoves) {
+            this.highlightedSqares[move.x][move.y] = true;
+        }
+
+        console.log(this.highlightedSqares)
 
         event.dataTransfer?.setData('text/plain', JSON.stringify({ x, y }));
     }
@@ -66,5 +78,10 @@ export class BoardComponent{
         }
 
         this.draggedPiece = null;
+        this.resetHighlights();
+    }
+
+    resetHighlights() {
+        this.highlightedSqares = Array(8).fill(null).map(() => Array(8).fill(false));
     }
 }

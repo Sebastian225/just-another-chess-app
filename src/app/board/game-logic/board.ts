@@ -76,7 +76,7 @@ export class Board {
                             ? PlayerColor.WHITE
                             : PlayerColor.BLACK;
 
-                    const position: Coordinate = { x: y, y: x };
+                    const position: Coordinate = { x, y };
 
                     const piece = this.createPieceFromFENChar(
                         char.toLowerCase(),
@@ -94,6 +94,7 @@ export class Board {
             }
         }
 
+        console.log(this.pieces.map(p => p.position))
         this.updateBoard();
 
         // TODO later:

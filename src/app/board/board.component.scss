@@ -21,7 +21,11 @@
 
     &.white { background-color: #c9c9c6; }
     &.black { background-color: #6b6666; }
-    &.highlight { background-color: rgba(0, 255, 0, 0.5); }
+
+    &.highlight { 
+        background-color: rgba(0, 255, 0, 0.5);
+        outline: 1px solid #1f1c1c; 
+    }
 
     .piece {
         width: 100%;

@@ -1,9 +1,13 @@
 <div class="board">
-    <div class="row" *ngFor="let y of indices">
+    <div class="row" *ngFor="let x of indices">
         <div
             class="square"
-            *ngFor="let x of indices"
-            [ngClass]="getSquareColor(x, y)"
+            *ngFor="let y of indices"
+            [ngClass]="{
+                'highlight': this.highlightedSqares[x][y],
+                'white': getSquareColor(x, y) === 'white',
+                'black': getSquareColor(x, y) === 'black'
+            }"
             [attr.data-x]="x"
             [attr.data-y]="y"
             (dragover)="onDragOver($event)"

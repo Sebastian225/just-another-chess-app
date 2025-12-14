@@ -67,4 +67,7 @@ const pieceTypeToString = (type: PieceTypes): string => {
 const playerColorToString = (color: PlayerColor): string =>
     color === PlayerColor.WHITE ? "white" : "black";
 
+export const isInBounds = (position: Coordinate): boolean =>
+    position.x >= 0 && position.x <= 7 && position.y >= 0 && position.y <= 7
+
 
