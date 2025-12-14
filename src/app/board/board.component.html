@@ -6,12 +6,16 @@
             [ngClass]="getSquareColor(x, y)"
             [attr.data-x]="x"
             [attr.data-y]="y"
+            (dragover)="onDragOver($event)"
+            (drop)="onDrop($event, x, y)"
         >
             <img
                 *ngIf="getPieceAt(x, y)"
                 [src]="getPieceAt(x, y)!.imageSrc"
                 class="piece"
                 alt=""
+                draggable="true"
+                (dragstart)="onDragStart($event, x, y)"
             />
         </div>
     </div>

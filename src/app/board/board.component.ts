@@ -12,7 +12,7 @@ import { CommonModule } from '@angular/common';
 })
 export class BoardComponent{
     constructor () {
-        this.board = new Board("rnbqkbnr/pp1ppppp/8/2p5/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2");
+        this.board = new Board();
     }
 
     board: Board;
@@ -25,5 +25,46 @@ export class BoardComponent{
 
     getPieceAt(x: number, y: number): IPiece | null {
         return this.board.getPieceAt(x, y);
+    }
+
+    draggedPiece: IPiece | null = null;
+
+    onDragStart(event: DragEvent, x: number, y: number) {
+        this.draggedPiece = this.board.getPieceAt(x, y);
+
+        event.dataTransfer?.setData('text/plain', JSON.stringify({ x, y }));
+    }
+
+    onDragOver(event: DragEvent) {
+        event.preventDefault();
+    }
+
+    onDrop(event: DragEvent, targetX: number, targetY: number) {
+        console.log("old", this.draggedPiece?.position.x, this.draggedPiece?.position.y)
+        console.log("new", targetX, targetY)
+        event.preventDefault();
+
+        if (!this.draggedPiece) return;
+
+        const legalMoves = this.draggedPiece.getAvailableMoves(this.board);
+        // const isLegal = true; // full chaos
+        const isLegal = legalMoves.some(m => m.x === targetX && m.y === targetY);
+
+        if (isLegal) {
+            // Move piece
+            const oldX = this.draggedPiece.position.x;
+            const oldY = this.draggedPiece.position.y;
+
+            this.board.piecesPosition[oldY][oldX] = null;
+            this.draggedPiece.position = { x: targetX, y: targetY };
+            this.board.piecesPosition[targetY][targetX] = this.draggedPiece;
+
+            // Mark as moved if applicable
+            if ('hasMoved' in this.draggedPiece) {
+                (this.draggedPiece as any).hasMoved = true;
+            }
+        }
+
+        this.draggedPiece = null;
     }
 }

@@ -1,3 +1,5 @@
+import { Board } from "../board";
+
 export enum PlayerColor {
     WHITE,
     BLACK
@@ -22,7 +24,7 @@ export interface IPiece {
     position: Coordinate;
     color: PlayerColor;
     type: PieceTypes;
-    getAvailableMoves(): Coordinate[];
+    getAvailableMoves(board: Board): Coordinate[];
 }
 
 export abstract class Piece implements IPiece {
@@ -42,7 +44,7 @@ export abstract class Piece implements IPiece {
         this.imageSrc = this.buildImageSrc();;
     }
 
-    abstract getAvailableMoves(): Coordinate[];
+    abstract getAvailableMoves(board: Board): Coordinate[];
 
     private buildImageSrc(): string {
         const colorStr = playerColorToString(this.color);

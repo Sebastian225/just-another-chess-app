@@ -10,7 +10,7 @@ export class Board {
     readonly size = 8;
     pieces: IPiece[] = [];
     activeColor: PlayerColor = PlayerColor.WHITE;
-    piecesPosition: IPiece[][] = Array(8).fill(null).map(() => Array(8).fill(null));
+    piecesPosition: (IPiece | null)[][] = Array(8).fill(null).map(() => Array(8).fill(null));
 
     constructor(fen?: string) {
         if (fen) {
@@ -24,7 +24,7 @@ export class Board {
     updateBoard() {
         this.piecesPosition = Array(8).fill(null).map(() => Array(8).fill(null));
         for (const piece of this.pieces) {
-            this.piecesPosition[piece.position.x][piece.position.y] = piece;
+            this.piecesPosition[piece.position.y][piece.position.x] = piece;
         }
     }
 
@@ -76,7 +76,7 @@ export class Board {
                             ? PlayerColor.WHITE
                             : PlayerColor.BLACK;
 
-                    const position: Coordinate = { x, y };
+                    const position: Coordinate = { x: y, y: x };
 
                     const piece = this.createPieceFromFENChar(
                         char.toLowerCase(),
