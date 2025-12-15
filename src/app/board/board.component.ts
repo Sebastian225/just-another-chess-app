@@ -37,12 +37,12 @@ export class BoardComponent{
             return;
         }
         
-        const availableMoves = this.draggedPiece.getAvailableMoves(this.board);
+        const availableMoves = this.board.getLegalMoves(this.draggedPiece);
         for (let move of availableMoves) {
             this.highlightedSqares[move.x][move.y] = true;
         }
 
-        console.log(this.highlightedSqares)
+        //console.log(this.highlightedSqares)
 
         event.dataTransfer?.setData('text/plain', JSON.stringify({ x, y }));
     }
@@ -52,29 +52,22 @@ export class BoardComponent{
     }
 
     onDrop(event: DragEvent, targetX: number, targetY: number) {
-        console.log("old", this.draggedPiece?.position.x, this.draggedPiece?.position.y)
-        console.log("new", targetX, targetY)
         event.preventDefault();
 
         if (!this.draggedPiece) return;
 
-        const legalMoves = this.draggedPiece.getAvailableMoves(this.board);
+        const legalMoves = this.board.getLegalMoves(this.draggedPiece);
         // const isLegal = true; // full chaos
         const isLegal = legalMoves.some(m => m.x === targetX && m.y === targetY);
 
         if (isLegal) {
             // Move piece
-            const oldX = this.draggedPiece.position.x;
-            const oldY = this.draggedPiece.position.y;
-
-            this.board.piecesPosition[oldY][oldX] = null;
-            this.draggedPiece.position = { x: targetX, y: targetY };
-            this.board.piecesPosition[targetY][targetX] = this.draggedPiece;
-
-            // Mark as moved if applicable
-            if ('hasMoved' in this.draggedPiece) {
-                (this.draggedPiece as any).hasMoved = true;
+            const destination = {
+                x: targetX,
+                y: targetY
             }
+            
+            this.board.makeMove(this.draggedPiece, destination);
         }
 
         this.draggedPiece = null;

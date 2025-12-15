@@ -8,7 +8,7 @@ export class Pawn extends Piece {
         super(position, color, PieceTypes.PAWN);
     }
 
-    override getAvailableMoves(board: Board): Coordinate[] {
+    override getPseudoLegalMoves(board: Board): Coordinate[] {
         const result: Coordinate[] = [];
 
         const direction = this.color === PlayerColor.WHITE ? -1 : 1;
@@ -45,5 +45,10 @@ export class Pawn extends Piece {
         }
 
         return result;
+    }
+
+    override move(x: number, y: number) {
+        super.move(x, y);
+        this.hasMoved = true;
     }
 }

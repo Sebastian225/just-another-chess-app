@@ -2,9 +2,10 @@ import { Bishop } from "./pieces/bishop";
 import { King } from "./pieces/king";
 import { Knight } from "./pieces/knight";
 import { Pawn } from "./pieces/pawn";
-import { IPiece, PlayerColor, Coordinate } from "./pieces/piece";
+import { IPiece, PlayerColor, Coordinate, PieceTypes, isInBounds } from "./pieces/piece";
 import { Queen } from "./pieces/queen";
 import { Rook } from "./pieces/rook";
+import { Constants } from "./utils/constants";
 
 export class Board {
     readonly size = 8;
@@ -34,6 +35,129 @@ export class Board {
 
     getPieceAt(x: number, y: number): IPiece | null {
         return this.piecesPosition[y][x];
+    }
+
+    private findKing(color: PlayerColor): IPiece | null {
+        for (let piece of this.pieces) {
+            if (piece.type === PieceTypes.KING && piece.color === color) {
+                return piece;
+            }
+        }
+
+        return null;
+    }
+
+    private getPiecesOfColor(color: PlayerColor): IPiece[] {
+        return this.pieces.filter(p => p.color === color);
+    }
+
+    isKingInCheck(color: PlayerColor): boolean {
+        const king = this.findKing(color);
+        if (!king) throw new Error('King missing');
+
+        const enemyColor = color === PlayerColor.WHITE
+            ? PlayerColor.BLACK
+            : PlayerColor.WHITE;
+
+        for (const piece of this.getPiecesOfColor(enemyColor)) {
+            const moves = piece.getPseudoLegalMoves(this);
+            if (moves.some(m => m.x === king.position.x && m.y === king.position.y)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    getLegalMoves(piece: IPiece): Coordinate[] {
+        const pseudoMoves = piece.getPseudoLegalMoves(this);
+        const legalMoves: Coordinate[] = [];
+        
+        for (const move of pseudoMoves) {
+            const snapshot = this.makeTemporaryMove(piece, move);
+        
+            if (!this.isKingInCheck(piece.color)) {
+                legalMoves.push(move);
+            }
+        
+            this.undoTemporaryMove(snapshot);
+        }
+    
+        return legalMoves;
+    }
+
+    removePiece(piece: IPiece): void {
+        const idx = this.pieces.findIndex(p => p === piece);
+        if (idx != -1) {
+            this.pieces.splice(idx, 1);
+        }
+    }
+
+    makeTemporaryMove(piece: IPiece, to: Coordinate): MoveSnapshot {
+        const from = { ...piece.position };
+        const capturedPiece = this.getPieceAt(to.x, to.y);
+
+        const snapshot: MoveSnapshot = {
+            piece,
+            from,
+            to,
+            capturedPiece,
+            hasMovedBefore: 'hasMoved' in piece ? piece.hasMoved as boolean : undefined,
+        };
+
+        this.piecesPosition[from.y][from.x] = null;
+        piece.position = { ...to };
+        this.piecesPosition[to.y][to.x] = piece;
+
+        if (capturedPiece) {
+            this.removePiece(capturedPiece);
+        }
+
+        if ('hasMoved' in piece) {
+            piece.hasMoved = true;
+        }
+
+        return snapshot;
+    }
+
+    makeMove(piece: IPiece, to: Coordinate): void {
+        const from = { ...piece.position };
+        const capturedPiece = this.getPieceAt(to.x, to.y);
+
+        this.piecesPosition[from.y][from.x] = null;
+        this.piecesPosition[to.y][to.x] = piece;
+
+        if (capturedPiece) {
+            this.removePiece(capturedPiece);
+        }
+
+        piece.move(to.x, to.y);
+    }
+
+    // I think I can totally use just a single method for temporary and normal moves
+    // whan makes move temporary or not is if I use the returned snapshot or not
+
+    restorePiece(piece: IPiece): void {
+        this.pieces.push(piece);
+    }
+
+    undoTemporaryMove(snapshot: MoveSnapshot) {
+        const { piece, from, to, capturedPiece, hasMovedBefore } = snapshot;
+
+        this.piecesPosition[to.y][to.x] = null;
+        piece.position = { ...from };
+        this.piecesPosition[from.y][from.x] = piece;
+
+        if (capturedPiece) {
+            this.restorePiece(capturedPiece);
+            this.piecesPosition[to.y][to.x] = capturedPiece;
+        }
+
+        if ('hasMoved' in piece && hasMovedBefore !== undefined) {
+            piece.hasMoved = hasMovedBefore;
+        }
+
+        // todo use piece move method
     }
 
     loadFromFEN(fen: string): void {
@@ -93,8 +217,6 @@ export class Board {
                 throw new Error(`Invalid FEN rank: ${rank}`);
             }
         }
-
-        console.log(this.pieces.map(p => p.position))
         this.updateBoard();
 
         // TODO later:
@@ -124,4 +246,14 @@ export class Board {
     private isDigit(char: string): boolean {
         return char >= "1" && char <= "8";
     }
+
 }
+
+type MoveSnapshot = {
+    piece: IPiece;
+    from: Coordinate;
+    to: Coordinate;
+    capturedPiece: IPiece | null;
+    hasMovedBefore?: boolean;
+};
+

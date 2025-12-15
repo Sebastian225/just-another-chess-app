@@ -24,7 +24,8 @@ export interface IPiece {
     position: Coordinate;
     color: PlayerColor;
     type: PieceTypes;
-    getAvailableMoves(board: Board): Coordinate[];
+    getPseudoLegalMoves(board: Board): Coordinate[];
+    move(x: number, y: number): void;
 }
 
 export abstract class Piece implements IPiece {
@@ -44,14 +45,20 @@ export abstract class Piece implements IPiece {
         this.imageSrc = this.buildImageSrc();;
     }
 
-    abstract getAvailableMoves(board: Board): Coordinate[];
+    abstract getPseudoLegalMoves(board: Board): Coordinate[];
 
     private buildImageSrc(): string {
         const colorStr = playerColorToString(this.color);
         const typeStr = pieceTypeToString(this.type);
         return `images/${colorStr}-${typeStr}.png`;
     }
+
+    move(x: number, y: number): void {
+        this.position = { x, y };
+    }
 }
+
+// these should be in utils
 
 const pieceTypeToString = (type: PieceTypes): string => {
     switch (type) {

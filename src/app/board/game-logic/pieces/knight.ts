@@ -6,7 +6,7 @@ export class Knight extends Piece {
         super(position, color, PieceTypes.KNIGHT);
     }
 
-    override getAvailableMoves(board: Board): Coordinate[] {
+    override getPseudoLegalMoves(board: Board): Coordinate[] {
         const result: Coordinate[] = [];
 
         const offsets = [

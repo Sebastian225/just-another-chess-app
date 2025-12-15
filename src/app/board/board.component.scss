@@ -19,17 +19,23 @@
     -o-user-select: none;
     user-select: none;
 
-    &.white { background-color: #c9c9c6; }
-    &.black { background-color: #6b6666; }
+    &.white { background-color: #bfbfa5; }
+    &.black { background-color: #554c7b; }
 
-    &.highlight { 
-        background-color: rgba(0, 255, 0, 0.5);
-        outline: 1px solid #1f1c1c; 
+    .highlight { 
+        background-color: rgba(0, 255, 0, 0.377);
+        width: 100%;
+        height: 100%;
+        display: inline-block;
+        z-index: 2;
+        position: absolute;
     }
 
     .piece {
         width: 100%;
         height: 100%;
         user-select: none;
+        z-index: 3;
+        position: relative;
     }
 }
