@@ -42,6 +42,10 @@ export class Pawn extends Piece {
             if (target && target.color !== this.color) {
                 result.push(targetPosition);
             }
+
+            if (!target && board.enPassantSquare && board.enPassantSquare.x == targetPosition.x && board.enPassantSquare.y == targetPosition.y) {
+                result.push(targetPosition)
+            }
         }
 
         return result;
