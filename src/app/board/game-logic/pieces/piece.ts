@@ -77,4 +77,7 @@ const playerColorToString = (color: PlayerColor): string =>
 export const isInBounds = (position: Coordinate): boolean =>
     position.x >= 0 && position.x <= 7 && position.y >= 0 && position.y <= 7
 
+export const isEqual = (a: Coordinate, b: Coordinate): boolean =>
+    a.x == b.x && a.y == b.y;
+
 

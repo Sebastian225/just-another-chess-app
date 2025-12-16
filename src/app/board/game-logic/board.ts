@@ -2,10 +2,10 @@ import { Bishop } from "./pieces/bishop";
 import { King } from "./pieces/king";
 import { Knight } from "./pieces/knight";
 import { Pawn } from "./pieces/pawn";
-import { IPiece, PlayerColor, Coordinate, PieceTypes, isInBounds } from "./pieces/piece";
+import { IPiece, PlayerColor, Coordinate, PieceTypes, isInBounds, isEqual } from "./pieces/piece";
 import { Queen } from "./pieces/queen";
 import { Rook } from "./pieces/rook";
-import { Constants } from "./utils/constants";
+import { Error } from "./utils/errors";
 
 export class Board {
     readonly size = 8;
@@ -54,7 +54,10 @@ export class Board {
 
     isKingInCheck(color: PlayerColor): boolean {
         const king = this.findKing(color);
-        if (!king) throw new Error('King missing');
+        if (!king) {
+            console.error("king missing");
+            return false;
+        }
 
         const enemyColor = color === PlayerColor.WHITE
             ? PlayerColor.BLACK
@@ -72,7 +75,7 @@ export class Board {
 
     getLegalMoves(piece: IPiece): Coordinate[] {
         const pseudoMoves = piece.getPseudoLegalMoves(this);
-        const legalMoves: Coordinate[] = [];
+        let legalMoves: Coordinate[] = [];
         
         for (const move of pseudoMoves) {
             const snapshot = this.makeMove(piece, move);
@@ -83,8 +86,143 @@ export class Board {
         
             this.undoMove(snapshot);
         }
+
+        if (piece.type === PieceTypes.KING) {
+            const castlingMoves = this.getLegalCastlingMoves(piece as King);
+            legalMoves = legalMoves.concat(castlingMoves);
+        }
     
         return legalMoves;
+    }
+
+    private getLegalCastlingMoves(king: King): Coordinate[] {
+        let result: Coordinate[] = [];
+
+        if (king.hasMoved) {
+            return result;
+        }
+
+        if (this.isKingSideCastlingAllowed(king)){
+            result.push({
+                x: king.position.x + 2,
+                y: king.position.y
+            });
+        }
+
+        if (this.isQueenSideCastlingAllowed(king)) {
+            result.push({
+                x: king.position.x - 2,
+                y: king.position.y
+            });
+        }
+
+        return result;
+    }
+
+    private getCastleRookSquare(king: King, side: CastlingSide): Coordinate {
+        if (king.color === PlayerColor.WHITE && side === CastlingSide.KINGSIDE) {
+            return {
+                x: 7,
+                y: 7
+            }
+        }
+
+        if (king.color === PlayerColor.WHITE && side === CastlingSide.QUEENSIDE) {
+            return {
+                x: 0,
+                y: 7
+            }
+        }
+
+        if (king.color === PlayerColor.BLACK && side === CastlingSide.KINGSIDE) {
+            return {
+                x: 7,
+                y: 0
+            }
+        }
+        
+        return {
+            x: 0,
+            y: 0
+        }
+    }
+
+    private getCastlingSquaresToCheck(king: King, rookPosition: Coordinate): Coordinate[] {
+        if (king.position.y !== rookPosition.y) {
+            console.error(Error.CastlingDifferentRanks);
+        }
+
+        let result: Coordinate[] = [];
+
+        const direction = king.position.x < rookPosition.x ? 1 : -1;
+        let x = king.position.x
+        for (let i = 0; i < 3; i++) {
+            result.push({
+                x: x,
+                y: king.position.y
+            });
+            x += direction;
+        }
+
+        return result;
+    }
+
+    private isKingSideCastlingAllowed(king: King): boolean {
+        const rookPosition = this.getCastleRookSquare(king, CastlingSide.KINGSIDE);
+        if (rookPosition.y !== king.position.y) {
+            console.error(Error.CastlingDifferentRanks);
+        }
+
+        const rook = this.getPieceAt(rookPosition.x, rookPosition.y) as Rook;
+
+        if (!rook || rook.hasMoved){
+            return false;
+        }
+
+        for (let x = king.position.x + 1; x < rookPosition.x; x++) {
+            if (this.getPieceAt(x, king.position.y)) {
+                return false;
+            }
+        }
+
+        return this.isCastlingSafe(king, rookPosition);
+    }
+
+    private isCastlingSafe(king: King, rookPosition: Coordinate): boolean {
+        const squares = this.getCastlingSquaresToCheck(king, rookPosition);
+        const enemyPieces = this.pieces.filter(p => p.color !== king.color);
+
+        for (let piece of enemyPieces) {
+            const pieceAttacks = piece.getPseudoLegalMoves(this);
+            if (pieceAttacks.find(
+                attack => isEqual(attack, squares[0]) || isEqual(attack, squares[1]) || isEqual(attack, squares[2])
+            )) {
+                return false;
+            }
+        }
+        
+        return true;
+    }
+
+    private isQueenSideCastlingAllowed(king: King): boolean {
+        const rookPosition = this.getCastleRookSquare(king, CastlingSide.QUEENSIDE);
+        if (rookPosition.y !== king.position.y) {
+            console.error(Error.CastlingDifferentRanks);
+        }
+
+        const rook = this.getPieceAt(rookPosition.x, rookPosition.y) as Rook;
+
+        if (!rook || rook.hasMoved){
+            return false;
+        }
+
+        for (let x = king.position.x - 1; x > rookPosition.x; x--) {
+            if (this.getPieceAt(x, king.position.y)) {
+                return false;
+            }
+        }
+
+        return this.isCastlingSafe(king, rookPosition);
     }
 
     removePiece(piece: IPiece): void {
@@ -132,6 +270,19 @@ export class Board {
 
         piece.move(to.x, to.y);
 
+        if (piece.type === PieceTypes.KING && Math.abs(from.x - to.x) == 2) {
+            const castlingSide = from.x < to.x ? CastlingSide.KINGSIDE : CastlingSide.QUEENSIDE;
+            const rookPosition = this.getCastleRookSquare(piece as King, castlingSide);
+            const rook = this.getPieceAt(rookPosition.x, rookPosition.y)!;
+            const rookDestination = this.getRookPositionAfterCastle(piece, castlingSide);
+            rook.move(rookDestination.x, rookDestination.y);
+
+            this.piecesPosition[rookPosition.y][rookPosition.x] = null;
+            this.piecesPosition[rookDestination.y][rookDestination.x] = rook;
+
+            snapshot.castlingSide = castlingSide;
+        }
+
         if (piece.type === PieceTypes.PAWN && Math.abs(from.y - to.y) == 2) {
             this.enPassantSquare = {
                 x: from.x,
@@ -145,12 +296,20 @@ export class Board {
         return snapshot;
     }
 
+    private getRookPositionAfterCastle(king: IPiece, side: CastlingSide): Coordinate {
+        const dx = side === CastlingSide.KINGSIDE ? -1 : 1;
+        return {
+            x: king.position.x + dx,
+            y: king.position.y
+        }
+    }
+
     restorePiece(piece: IPiece): void {
         this.pieces.push(piece);
     }
 
-    undoMove(snapshot: MoveSnapshot) {
-        const { piece, from, to, capturedPiece, enPassantSquare, capturedPawnPosition, hasMovedBefore } = snapshot;
+    undoMove(snapshot: MoveSnapshot) { //undo castle
+        const { piece, from, to, capturedPiece, enPassantSquare, capturedPawnPosition, hasMovedBefore, castlingSide } = snapshot;
 
         this.piecesPosition[to.y][to.x] = null;
         piece.position = { ...from };
@@ -173,6 +332,20 @@ export class Board {
 
         this.enPassantSquare = enPassantSquare;
 
+        if (castlingSide) {
+            const rookPosition = this.getRookPositionAfterCastle(piece, castlingSide);
+            const rookDest = this.getCastleRookSquare(piece as King, castlingSide);
+
+            this.piecesPosition[rookPosition.y][rookPosition.x] = null;
+            piece.position = { ...rookDest };
+            this.piecesPosition[rookDest.y][rookDest.x] = piece;
+
+            const rook = this.getPieceAt(rookPosition.x, rookPosition.y)! as Rook;
+            rook.hasMoved = false;
+        }
+
+        // todo handle has moved in piece method like move
+
         if ('hasMoved' in piece && hasMovedBefore !== undefined) {
             piece.hasMoved = hasMovedBefore;
         }
@@ -183,7 +356,7 @@ export class Board {
 
         const parts = fen.trim().split(" ");
         if (parts.length < 2) {
-            throw new Error("Invalid FEN string");
+            console.error("Invalid FEN string")
         }
 
         const [
@@ -202,7 +375,7 @@ export class Board {
 
         const ranks = piecePlacement.split("/");
         if (ranks.length !== 8) {
-            throw new Error("Invalid FEN: must have 8 ranks");
+            console.error("Invalid FEN: must have 8 ranks");
         }
 
         for (let y = 0; y < 8; y++) {
@@ -232,7 +405,7 @@ export class Board {
             }
 
             if (x !== 8) {
-                throw new Error(`Invalid FEN rank: ${rank}`);
+                console.error(`Invalid FEN rank: ${rank}`);
             }
         }
         this.updateBoard();
@@ -257,7 +430,8 @@ export class Board {
             case "q": return new Queen(position, color);
             case "k": return new King(position, color);
             default:
-                throw new Error(`Unknown FEN piece: ${char}`);
+                console.error(`Unknown FEN piece: ${char}`);
+                throw "fatal fen parse error";
         }
     }
 
@@ -275,5 +449,11 @@ type MoveSnapshot = {
     enPassantSquare: Coordinate | null;
     capturedPawnPosition?: Coordinate;
     hasMovedBefore?: boolean;
+    castlingSide? : CastlingSide | null;
 };
+
+enum CastlingSide {
+    QUEENSIDE,
+    KINGSIDE
+}
 
