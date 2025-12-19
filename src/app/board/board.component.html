@@ -1,3 +1,5 @@
+<button (click)="switchSides()">switch</button>
+<button (click)="restart()">restart</button>
 <div class="board">
     <div class="row" *ngFor="let x of indices">
         <div
@@ -23,4 +25,10 @@
             />
         </div>
     </div>
+</div>
+<div class="promotion-picker" *ngIf="promotionPickerVisible" [ngStyle]="{
+    'left.px': promotionPickerPosition.x,
+    'top.px': promotionPickerPosition.y,
+}">
+    <app-promotion-picker [color]="board.activeColor" (pieceChosen)="onPawnPromoted($event)"></app-promotion-picker>
 </div>

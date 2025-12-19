@@ -42,7 +42,7 @@ export abstract class Piece implements IPiece {
         this.position = position;
         this.color = color;
         this.type = type;
-        this.imageSrc = this.buildImageSrc();;
+        this.imageSrc = this.buildImageSrc();
     }
 
     abstract getPseudoLegalMoves(board: Board): Coordinate[];
@@ -60,7 +60,7 @@ export abstract class Piece implements IPiece {
 
 // these should be in utils
 
-const pieceTypeToString = (type: PieceTypes): string => {
+export const pieceTypeToString = (type: PieceTypes): string => {
     switch (type) {
         case PieceTypes.PAWN: return "pawn";
         case PieceTypes.KNIGHT: return "knight";
@@ -71,7 +71,18 @@ const pieceTypeToString = (type: PieceTypes): string => {
     }
 };
 
-const playerColorToString = (color: PlayerColor): string =>
+export const pieceTypeToValue = (type: PieceTypes): number => {
+    switch (type) {
+        case PieceTypes.PAWN: return 1;
+        case PieceTypes.KNIGHT: return 3;
+        case PieceTypes.BISHOP: return 3;
+        case PieceTypes.ROOK: return 5;
+        case PieceTypes.QUEEN: return 9;
+        case PieceTypes.KING: return 100;
+    }
+};
+
+export const playerColorToString = (color: PlayerColor): string =>
     color === PlayerColor.WHITE ? "white" : "black";
 
 export const isInBounds = (position: Coordinate): boolean =>

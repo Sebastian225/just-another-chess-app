@@ -1,0 +1,11 @@
+<div
+    class="square"
+    *ngFor="let pieceType of pieceTypes"
+    (click)="onClick(pieceType)"
+>
+    <img
+        [src]="buildImageSrc(pieceType)"
+        class="piece"
+        alt=""
+    />
+</div>
