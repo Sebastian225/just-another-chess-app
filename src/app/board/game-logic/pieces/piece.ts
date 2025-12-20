@@ -1,4 +1,4 @@
-import { Board } from "../board";
+import { Board, Move } from "../board";
 
 export enum PlayerColor {
     WHITE,
@@ -24,7 +24,7 @@ export interface IPiece {
     position: Coordinate;
     color: PlayerColor;
     type: PieceTypes;
-    getPseudoLegalMoves(board: Board): Coordinate[];
+    getPseudoLegalMoves(board: Board): Move[];
     move(x: number, y: number): void;
 }
 
@@ -45,7 +45,7 @@ export abstract class Piece implements IPiece {
         this.imageSrc = this.buildImageSrc();
     }
 
-    abstract getPseudoLegalMoves(board: Board): Coordinate[];
+    abstract getPseudoLegalMoves(board: Board): Move[];
 
     private buildImageSrc(): string {
         const colorStr = playerColorToString(this.color);
@@ -54,7 +54,8 @@ export abstract class Piece implements IPiece {
     }
 
     move(x: number, y: number): void {
-        this.position = { x, y };
+        this.position.x = x;
+        this.position.y = y;
     }
 }
 

@@ -1,4 +1,4 @@
-import { Board } from "../board";
+import { Board, Move } from "../board";
 import { Piece, Coordinate, PlayerColor, PieceTypes, isInBounds } from "./piece";
 
 export class Knight extends Piece {
@@ -6,8 +6,8 @@ export class Knight extends Piece {
         super(position, color, PieceTypes.KNIGHT);
     }
 
-    override getPseudoLegalMoves(board: Board): Coordinate[] {
-        const result: Coordinate[] = [];
+    override getPseudoLegalMoves(board: Board): Move[] {
+        const result: Move[] = [];
 
         const offsets = [
             { x: 1, y: 2 }, { x: 2, y: 1 },
@@ -28,11 +28,12 @@ export class Knight extends Piece {
 
             const targetPiece = board.getPieceAt(targetPosition.x, targetPosition.y);
 
-            if (!targetPiece) {
-                result.push(targetPosition);
-            }
-            else if (targetPiece.color !== this.color) {
-                result.push(targetPosition);
+            if (!targetPiece || targetPiece.color !== this.color) {
+                result.push({
+                    piece: this,
+                    from: {...this.position},
+                    to: targetPosition
+                });
             }
         }
 

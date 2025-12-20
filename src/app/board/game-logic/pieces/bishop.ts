@@ -1,4 +1,4 @@
-import { Board } from "../board";
+import { Board, Move } from "../board";
 import { Constants } from "../utils/constants";
 import { Coordinate, isInBounds, Piece, PieceTypes, PlayerColor } from "./piece";
 
@@ -8,8 +8,8 @@ export class Bishop extends Piece {
         super(position, color, PieceTypes.BISHOP);
     }
 
-    override getPseudoLegalMoves(board: Board): Coordinate[] {
-        const result: Coordinate[] = [];
+    override getPseudoLegalMoves(board: Board): Move[] {
+        const result: Move[] = [];
         const directions = Constants.Directions.Diagonal;
 
         for (let direction of directions) {
@@ -22,10 +22,18 @@ export class Bishop extends Piece {
                 const targetPiece = board.getPieceAt(targetPosition.x, targetPosition.y);
 
                 if (!targetPiece) {
-                    result.push(targetPosition);
+                    result.push({
+                        piece: this,
+                        from: {...this.position},
+                        to: targetPosition
+                    });
                 }
                 else if (targetPiece.color !== this.color) {
-                    result.push(targetPosition);
+                    result.push({
+                        piece: this,
+                        from: {...this.position},
+                        to: targetPosition
+                    });
                     break;
                 }
                 else {

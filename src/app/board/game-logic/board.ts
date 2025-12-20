@@ -5,7 +5,6 @@ import { Pawn } from "./pieces/pawn";
 import { IPiece, PlayerColor, Coordinate, PieceTypes, isInBounds, isEqual, Piece } from "./pieces/piece";
 import { Queen } from "./pieces/queen";
 import { Rook } from "./pieces/rook";
-import { Error } from "./utils/errors";
 
 export class Board {
     readonly size = 8;
@@ -21,6 +20,7 @@ export class Board {
     }
 
     private fiftyMovesCounter: number = 0;
+    private playerColor: PlayerColor = PlayerColor.WHITE;
 
     constructor(fen?: string) {
         if (fen) {
@@ -73,141 +73,21 @@ export class Board {
 
         for (const piece of this.getPiecesOfColor(enemyColor)) {
             const moves = piece.getPseudoLegalMoves(this);
-            if (moves.some(m => m.x === king.position.x && m.y === king.position.y)) {
+            if (moves.some(m => m.to.x === king.position.x && m.to.y === king.position.y)) {
                 return true;
             }
         }
 
         return false;
     }
-    
-    /**
-        Keep in mind that this does not handle pawn promotions
-    */
-    getLegalMoves(piece: IPiece): Coordinate[] {
-        const pseudoMoves = piece.getPseudoLegalMoves(this);
-        let legalMoves: Coordinate[] = [];
-        
-        for (const move of pseudoMoves) {
-            const snapshot = this.makeMove(piece, move, false);
-        
-            if (!this.isKingInCheck(piece.color)) {
-                legalMoves.push(move);
-            }
-        
-            this.undoMove(snapshot);
-        }
 
-        if (piece.type === PieceTypes.KING) {
-            const castlingMoves = this.getLegalCastlingMoves(piece as King);
-            legalMoves = legalMoves.concat(castlingMoves);
-        }
-    
-        return legalMoves;
-    }
+    public areCastleSquaresEmpty(color: PlayerColor, side: CastlingSide): boolean {
+        let start = side === CastlingSide.KINGSIDE ? 5 : 1;
+        let end = side === CastlingSide.KINGSIDE ? 6 : 3;
+        let y = color === PlayerColor.WHITE ? 7 : 0;
 
-    private getLegalCastlingMoves(king: King): Coordinate[] {
-        let result: Coordinate[] = [];
-
-        if (king.hasMoved) {
-            return result;
-        }
-
-        if (this.isKingSideCastlingAllowed(king)){
-            result.push({
-                x: king.position.x + 2,
-                y: king.position.y
-            });
-        }
-
-        if (this.isQueenSideCastlingAllowed(king)) {
-            result.push({
-                x: king.position.x - 2,
-                y: king.position.y
-            });
-        }
-
-        return result;
-    }
-
-    private getCastleRookSquare(king: King, side: CastlingSide): Coordinate {
-        if (king.color === PlayerColor.WHITE && side === CastlingSide.KINGSIDE) {
-            return {
-                x: 7,
-                y: 7
-            }
-        }
-
-        if (king.color === PlayerColor.WHITE && side === CastlingSide.QUEENSIDE) {
-            return {
-                x: 0,
-                y: 7
-            }
-        }
-
-        if (king.color === PlayerColor.BLACK && side === CastlingSide.KINGSIDE) {
-            return {
-                x: 7,
-                y: 0
-            }
-        }
-        
-        return {
-            x: 0,
-            y: 0
-        }
-    }
-
-    private getCastlingSquaresToCheck(king: King, rookPosition: Coordinate): Coordinate[] {
-        if (king.position.y !== rookPosition.y) {
-            console.error(Error.CastlingDifferentRanks);
-        }
-
-        let result: Coordinate[] = [];
-
-        const direction = king.position.x < rookPosition.x ? 1 : -1;
-        let x = king.position.x
-        for (let i = 0; i < 3; i++) {
-            result.push({
-                x: x,
-                y: king.position.y
-            });
-            x += direction;
-        }
-
-        return result;
-    }
-
-    private isKingSideCastlingAllowed(king: King): boolean {
-        const rookPosition = this.getCastleRookSquare(king, CastlingSide.KINGSIDE);
-        if (rookPosition.y !== king.position.y) {
-            console.error(Error.CastlingDifferentRanks);
-        }
-
-        const rook = this.getPieceAt(rookPosition.x, rookPosition.y) as Rook;
-
-        if (!rook || rook.hasMoved){
-            return false;
-        }
-
-        for (let x = king.position.x + 1; x < rookPosition.x; x++) {
-            if (this.getPieceAt(x, king.position.y)) {
-                return false;
-            }
-        }
-
-        return this.isCastlingSafe(king, rookPosition);
-    }
-
-    private isCastlingSafe(king: King, rookPosition: Coordinate): boolean {
-        const squares = this.getCastlingSquaresToCheck(king, rookPosition);
-        const enemyPieces = this.pieces.filter(p => p.color !== king.color);
-
-        for (let piece of enemyPieces) {
-            const pieceAttacks = piece.getPseudoLegalMoves(this);
-            if (pieceAttacks.find(
-                attack => isEqual(attack, squares[0]) || isEqual(attack, squares[1]) || isEqual(attack, squares[2])
-            )) {
+        for (let x = start; x <= end; x++) {
+            if (this.getPieceAt(x, y) !== null) {
                 return false;
             }
         }
@@ -215,25 +95,61 @@ export class Board {
         return true;
     }
 
-    private isQueenSideCastlingAllowed(king: King): boolean {
-        const rookPosition = this.getCastleRookSquare(king, CastlingSide.QUEENSIDE);
-        if (rookPosition.y !== king.position.y) {
-            console.error(Error.CastlingDifferentRanks);
+    private isCastlingLegal(move: Move): boolean {
+        const start = Math.min(move.to.x, move.from.x);
+        const end = Math.max(move.to.x, move.from.x);
+        const passingSquares: Coordinate[] = [];
+
+        for (let x = start; x <= end; x++) {
+            passingSquares.push({
+                x: x,
+                y: move.to.y
+            });
         }
 
-        const rook = this.getPieceAt(rookPosition.x, rookPosition.y) as Rook;
-
-        if (!rook || rook.hasMoved){
-            return false;
-        }
-
-        for (let x = king.position.x - 1; x > rookPosition.x; x--) {
-            if (this.getPieceAt(x, king.position.y)) {
-                return false;
+        const enemyPieces = this.pieces.filter(p => p.color !== move.piece.color);
+        for (let p of enemyPieces) {
+            for (let enemyMove of p.getPseudoLegalMoves(this)) {
+                for (let square of passingSquares) {
+                    if (enemyMove.to.x == square.x && enemyMove.to.y == square.y) {
+                        return false;
+                    }
+                }
             }
         }
 
-        return this.isCastlingSafe(king, rookPosition);
+        return true;
+    }
+    
+    getLegalMoves(piece: IPiece): Move[] {
+        const pseudoMoves = piece.getPseudoLegalMoves(this);
+        let legalMoves: Move[] = [];
+        
+        for (const move of pseudoMoves) {
+            if (move.isCastling) {
+                if (this.isCastlingLegal(move)) {
+                    legalMoves.push(move);
+                }
+            }
+            else {
+                const snapshot = this.makeMove(move);
+
+                if (!this.isKingInCheck(piece.color)) {
+                    legalMoves.push(move);
+                }
+            
+                this.undoMove(snapshot);
+            }
+        }
+    
+        return legalMoves;
+    }
+
+    private getCastleRookSquare(king: King, side: CastlingSide): Coordinate {
+        return {
+            x: side === CastlingSide.KINGSIDE ? 7 : 0,
+            y: king.color === PlayerColor.WHITE ? 7 : 0
+        }
     }
 
     removePiece(piece: IPiece): void {
@@ -243,55 +159,54 @@ export class Board {
         }
     }
 
-    makeMove(piece: IPiece, to: Coordinate, isPermanent: boolean = true): MoveSnapshot {
-        const from = { ...piece.position };
+    makeMove(move: Move, isPermanent: boolean = false): MoveSnapshot {
+        const {piece, from, to, promotion, isEnPassant, isCastling} = move;
 
         let capturedPiece = this.getPieceAt(to.x, to.y);
-
-        const snapshot: MoveSnapshot = {
-            piece,
-            from,
-            to,
-            capturedPiece,
-            enPassantSquare: this.enPassantSquare,
-            hasMovedBefore: 'hasMoved' in piece ? piece.hasMoved as boolean : undefined,
-        };
+        let hasMovedBefore = 'hasMoved' in piece ? piece.hasMoved as boolean : undefined;
+        let capturedPawnPosition: Coordinate | undefined = undefined;
+        let castlingRights = {...this.castlingRights};
 
         if (
-            this.enPassantSquare && 
-            piece.type === PieceTypes.PAWN && 
-            to.x == this.enPassantSquare.x && 
-            to.y == this.enPassantSquare.y
+            this.enPassantSquare && isEnPassant
         ) {
             capturedPiece = this.getPieceAt(to.x, from.y);
-            snapshot.capturedPawnPosition = {
+            capturedPawnPosition = {
                 x: to.x,
                 y: from.y
             }
-            snapshot.capturedPiece = capturedPiece;
+            capturedPiece = capturedPiece;
             this.piecesPosition[from.y][to.x] = null;
         }
 
         this.piecesPosition[from.y][from.x] = null;
-        this.piecesPosition[to.y][to.x] = piece;
+
+        let promotionPiece = promotion ? this.getPromotedPiece(promotion, to, piece.color) : null;
+
+        this.piecesPosition[to.y][to.x] = promotion ? promotionPiece : piece;
 
         if (capturedPiece) {
             this.removePiece(capturedPiece);
         }
 
-        piece.move(to.x, to.y);
+        if (promotion) {
+            this.removePiece(piece);
+        }
+        else {
+            piece.move(to.x, to.y);
+        }
 
-        if (piece.type === PieceTypes.KING && Math.abs(from.x - to.x) == 2) {
-            const castlingSide = from.x < to.x ? CastlingSide.KINGSIDE : CastlingSide.QUEENSIDE;
+        let castlingSide: CastlingSide | undefined = undefined;
+
+        if (isCastling) {
+            castlingSide = from.x < to.x ? CastlingSide.KINGSIDE : CastlingSide.QUEENSIDE;
             const rookPosition = this.getCastleRookSquare(piece as King, castlingSide);
             const rook = this.getPieceAt(rookPosition.x, rookPosition.y)!;
-            const rookDestination = this.getRookPositionAfterCastle(piece, castlingSide);
+            const rookDestination = this.getRookPositionAfterCastle(piece.color, castlingSide);
             rook.move(rookDestination.x, rookDestination.y);
 
             this.piecesPosition[rookPosition.y][rookPosition.x] = null;
             this.piecesPosition[rookDestination.y][rookDestination.x] = rook;
-
-            snapshot.castlingSide = castlingSide;
         }
 
         if (piece.type === PieceTypes.PAWN && Math.abs(from.y - to.y) == 2) {
@@ -304,13 +219,37 @@ export class Board {
             this.enPassantSquare = null;
         }
 
-        if (isPermanent) {
-            if (this.isPawnOnPromotionSquare(piece)) {
-                this.pawnPromotionSquare = to;
-                this.fiftyMovesCounter = 0;
-                return snapshot;
+        if (piece.type === PieceTypes.KING) {
+            if (piece.color == PlayerColor.WHITE) {
+                this.castlingRights.whiteKingSide = false;
+                this.castlingRights.whiteQueenSide = false;
             }
+            else {
+                this.castlingRights.blackKingSide = false;
+                this.castlingRights.blackQueenSide = false;
+            }
+        }
 
+        if (piece.type === PieceTypes.ROOK) {
+            if (move.from.y == 0) {
+                if (move.from.x == 0) {
+                    this.castlingRights.blackQueenSide = false;
+                }
+                else if (move.from.x == 7) {
+                    this.castlingRights.blackKingSide = false;
+                }
+            }
+            else if (move.from.y == 7) {
+                if (move.from.x == 0) {
+                    this.castlingRights.whiteQueenSide = false;
+                }
+                else if (move.from.x == 7) {
+                    this.castlingRights.whiteKingSide = false;
+                }
+            } 
+        }
+
+        if (isPermanent) {
             this.switchTurn();
             this.updatePositionHistory();
 
@@ -321,8 +260,20 @@ export class Board {
                 this.fiftyMovesCounter = 0;
             }
 
-            this.checkGameStatus();
+            this.checkGameStatus(true);
         }
+
+        const snapshot: MoveSnapshot = {
+            piece,
+            from,
+            to,
+            capturedPiece,
+            capturedPawnPosition,
+            enPassantSquare: this.enPassantSquare,
+            castlingSide,
+            hasMovedBefore,
+            castlingRights
+        };
         
         return snapshot;
     }
@@ -338,38 +289,17 @@ export class Board {
         }
     }
 
-    private pawnPromotionSquare: Coordinate | null = null;
-
-    public afterPawnPromoted(pieceType: PieceTypes) {
-        if (!this.pawnPromotionSquare) {
-            console.error("Pawn promotion failed");
-            return;
-        }
-
-        const pawnIndex = this.pieces.findIndex(p => isEqual(p.position, this.pawnPromotionSquare!));
-        this.pieces.splice(pawnIndex, 1);
-
-        let promotedPiece: IPiece | null = null;
-
+    private getPromotedPiece(pieceType: PieceTypes, position: Coordinate, color: PlayerColor): IPiece {
         if (pieceType === PieceTypes.QUEEN) {
-            promotedPiece = new Queen(this.pawnPromotionSquare, this.activeColor);
+            return new Queen(position, color);
         } 
         else if (pieceType === PieceTypes.ROOK) {
-            promotedPiece = new Rook(this.pawnPromotionSquare, this.activeColor);
+            return new Rook(position, color);
         }
         else if (pieceType === PieceTypes.BISHOP) {
-            promotedPiece = new Bishop(this.pawnPromotionSquare, this.activeColor);
+            return new Bishop(position, color);
         }
-        else if (pieceType === PieceTypes.KNIGHT) {
-            promotedPiece = new Knight(this.pawnPromotionSquare, this.activeColor);
-        }
-
-        this.piecesPosition[this.pawnPromotionSquare.y][this.pawnPromotionSquare.x] = promotedPiece;
-        this.pawnPromotionSquare = null;
-
-        this.switchTurn();
-        this.updatePositionHistory();
-        this.checkGameStatus();
+        return new Knight(position, color);
     }
 
     public isPawnOnPromotionSquare(piece: IPiece): boolean {
@@ -428,22 +358,28 @@ export class Board {
         return (this.positionCounts.get(key) ?? 0) >= 3;
     }
 
-    private checkGameStatus(): void {
+    public checkGameStatus(displayMessage: boolean): number | null {
         if (this.fiftyMovesCounter == 100) {
             // draw by 50 moves rule
             // we check for 100 because we consider 50 whole moves (both white and black moved)
-            console.log("Draw by 50 moves rule!");
-            return;
+            if (displayMessage) {
+                console.log("Draw by 50 moves rule!");
+            }
+            return 0;
         }
 
         if (this.hasInsufficientMaterial()) {
-            console.log("Draw by insufficient material!");
-            return;
+            if (displayMessage) {
+                console.log("Draw by insufficient material!");
+            }
+            return 0;
         }
 
         if (this.isThreefoldRepetition()) {
-            console.log("Draw by threefold repetition!");
-            return;
+            if (displayMessage) {
+                console.log("Draw by threefold repetition!");
+            }
+            return 0;
         }
 
         const opponentPieces = this.pieces.filter(p => p.color === this.activeColor);
@@ -456,13 +392,21 @@ export class Board {
             if (this.isKingInCheck(this.activeColor)) {
                 // this.player turn has lost
                 const whoMadeLastMove = this.activeColor === PlayerColor.WHITE ? PlayerColor.BLACK : PlayerColor.WHITE;
-                console.log(`${this.getPlayerName(whoMadeLastMove)} has won!`);
+                if (displayMessage) {
+                    console.log(`${this.getPlayerName(whoMadeLastMove)} has won!`);
+                }
+                return whoMadeLastMove === PlayerColor.WHITE ? Infinity : -Infinity;
             }
             else {
                 // draw
-                console.log('Draw!');
+                if (displayMessage) {
+                    console.log('Draw!');
+                }
+                return 0;
             }
         }
+
+        return null;
     }
 
     private getPlayerName(color: PlayerColor): string {
@@ -476,11 +420,10 @@ export class Board {
         this.activeColor = this.activeColor === PlayerColor.WHITE ? PlayerColor.BLACK : PlayerColor.WHITE;
     }
 
-    private getRookPositionAfterCastle(king: IPiece, side: CastlingSide): Coordinate {
-        const dx = side === CastlingSide.KINGSIDE ? -1 : 1;
+    private getRookPositionAfterCastle(color: PlayerColor, side: CastlingSide): Coordinate {
         return {
-            x: king.position.x + dx,
-            y: king.position.y
+            x: side === CastlingSide.KINGSIDE ? 5: 3,
+            y: color === PlayerColor.WHITE ? 7 : 0
         }
     }
 
@@ -488,7 +431,7 @@ export class Board {
         this.pieces.push(piece);
     }
 
-    undoMove(snapshot: MoveSnapshot) { //undo castle
+    undoMove(snapshot: MoveSnapshot) {
         const { piece, from, to, capturedPiece, enPassantSquare, capturedPawnPosition, hasMovedBefore, castlingSide } = snapshot;
 
         if (this.isPawnOnPromotionSquare(piece)) {
@@ -497,7 +440,8 @@ export class Board {
         }
 
         this.piecesPosition[to.y][to.x] = null;
-        piece.position = { ...from };
+        piece.position.x = from.x;
+        piece.position.y = from.y;
         this.piecesPosition[from.y][from.x] = piece;
 
         if (capturedPiece) {
@@ -508,7 +452,6 @@ export class Board {
                 ][
                     capturedPawnPosition.x
                 ] = capturedPiece;
-                console.log(capturedPiece)
             }
             else {
                 this.piecesPosition[to.y][to.x] = capturedPiece;
@@ -518,15 +461,14 @@ export class Board {
         this.enPassantSquare = enPassantSquare;
 
         if (castlingSide) {
-            const rookPosition = this.getRookPositionAfterCastle(piece, castlingSide);
+            const rookPosition = this.getRookPositionAfterCastle(piece.color, castlingSide);
+            const rook = this.getPieceAt(rookPosition.x, rookPosition.y)! as Rook;
+
             const rookDest = this.getCastleRookSquare(piece as King, castlingSide);
 
             this.piecesPosition[rookPosition.y][rookPosition.x] = null;
-            piece.position = { ...rookDest };
-            this.piecesPosition[rookDest.y][rookDest.x] = piece;
-
-            const rook = this.getPieceAt(rookPosition.x, rookPosition.y)! as Rook;
-            rook.hasMoved = false;
+            rook.position = { ...rookDest };
+            this.piecesPosition[rookDest.y][rookDest.x] = rook;
         }
 
         // todo handle has moved in piece method like move
@@ -643,7 +585,6 @@ export class Board {
         }
 
         // TODO later:
-        // - castling rights
         // - en passant square
         // - halfmove clock
         // - fullmove number
@@ -662,16 +603,6 @@ export class Board {
         else if (char == 'q') {
             this.castlingRights.blackQueenSide = true;
         }
-    }
-
-    private initKingAndRooksHasMoved(): void {
-        if (!this.castlingRights.whiteKingSide && !this.castlingRights.whiteQueenSide) {
-            const whiteKing = this.findKing(PlayerColor.WHITE);
-            if (whiteKing) {
-                whiteKing.hasMoved = true;
-            }
-        }
-        // TODO
     }
 
     private createPieceFromFENChar(
@@ -698,6 +629,15 @@ export class Board {
 
 }
 
+export type Move = {
+    piece: IPiece;
+    from: Coordinate;
+    to: Coordinate;
+    promotion?: PieceTypes;
+    isEnPassant?: boolean;
+    isCastling?: boolean;
+};
+
 type MoveSnapshot = {
     piece: IPiece;
     from: Coordinate;
@@ -707,10 +647,18 @@ type MoveSnapshot = {
     capturedPawnPosition?: Coordinate;
     hasMovedBefore?: boolean;
     castlingSide? : CastlingSide | null;
+    castlingRights: CastlingRights;
 }; //add promotion?
 
-enum CastlingSide {
+type CastlingRights = {
+    whiteKingSide: boolean,
+    whiteQueenSide: boolean,
+    blackKingSide: boolean,
+    blackQueenSide: boolean
+}
+
+export enum CastlingSide {
+    KINGSIDE = 1,
     QUEENSIDE,
-    KINGSIDE
 }
 

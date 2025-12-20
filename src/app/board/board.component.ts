@@ -1,6 +1,6 @@
 import { Component, Input, OnInit } from '@angular/core';
-import { Board } from './game-logic/board';
-import { IPiece, PieceTypes } from './game-logic/pieces/piece';
+import { Board, Move } from './game-logic/board';
+import { IPiece, PieceTypes, PlayerColor } from './game-logic/pieces/piece';
 import { CommonModule } from '@angular/common';
 import { PromotionPickerComponent } from './promotion-picker/promotion-picker.component';
 
@@ -45,7 +45,7 @@ export class BoardComponent{
         
         const availableMoves = this.board.getLegalMoves(this.draggedPiece);
         for (let move of availableMoves) {
-            this.highlightedSqares[move.x][move.y] = true;
+            this.highlightedSqares[move.to.x][move.to.y] = true;
         }
 
         //console.log(this.highlightedSqares)
@@ -65,25 +65,27 @@ export class BoardComponent{
         } 
 
         const legalMoves = this.board.getLegalMoves(this.draggedPiece);
-        // const isLegal = true; // full chaos
-        const isLegal = legalMoves.some(m => m.x === targetX && m.y === targetY);
+        const move = legalMoves.find(m => m.to.x == targetX && m.to.y == targetY);
 
-        if (isLegal) {
-            // Move piece
-            const destination = {
-                x: targetX,
-                y: targetY
-            }
-            
-            this.board.makeMove(this.draggedPiece, destination);
-            if (this.board.isPawnOnPromotionSquare(this.draggedPiece)) {
+        if (move) { // if true - move anything
+            this.moveBackup = {...move};
+
+            if (
+                this.draggedPiece.type === PieceTypes.PAWN && 
+                targetY == this.getPawnPromotionRank(this.draggedPiece.color)
+            ) {
                 this.displayPromotionPicker(event.clientX, event.clientY);
+            }
+            else {
+                this.board.makeMove(move, true)
             }
         }
 
         this.draggedPiece = null;
         this.resetHighlights();
     }
+
+    private moveBackup: Move | null = null;
 
     displayPromotionPicker(x: number, y: number) {
         this.promotionPickerVisible = true;
@@ -93,7 +95,11 @@ export class BoardComponent{
     }
 
     onPawnPromoted(pieceType: PieceTypes): void {
-        this.board.afterPawnPromoted(pieceType);
+        if (!this.moveBackup) {
+            return;
+        }
+        this.moveBackup.promotion = pieceType;
+        this.board.makeMove(this.moveBackup, true);
 
         this.promotionPickerVisible = false;
     }
@@ -108,5 +114,13 @@ export class BoardComponent{
 
     restart() {
         this.board = new Board();
+        this.resetHighlights();
+    }
+
+    private getPawnPromotionRank(color: PlayerColor): number {
+        if (color === PlayerColor.WHITE) {
+            return 0;
+        }
+        return 7;
     }
 }

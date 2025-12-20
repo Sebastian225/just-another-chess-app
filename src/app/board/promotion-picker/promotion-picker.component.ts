@@ -1,6 +1,7 @@
 import { Component, EventEmitter, Input, Output } from '@angular/core';
 import { PieceTypes, pieceTypeToString, PlayerColor, playerColorToString } from '../game-logic/pieces/piece';
 import { CommonModule } from '@angular/common';
+import { Pawn } from '../game-logic/pieces/pawn';
 
 @Component({
     selector: 'app-promotion-picker',
@@ -13,12 +14,7 @@ export class PromotionPickerComponent {
     @Input()
     color: PlayerColor = PlayerColor.WHITE;
 
-    pieceTypes: PieceTypes[] = [
-        PieceTypes.QUEEN,
-        PieceTypes.ROOK,
-        PieceTypes.BISHOP,
-        PieceTypes.KNIGHT
-    ];
+    pieceTypes: PieceTypes[] = Pawn.promotionTypes;
 
     constructor () {
 
