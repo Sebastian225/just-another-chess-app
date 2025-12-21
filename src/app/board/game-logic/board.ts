@@ -165,7 +165,7 @@ export class Board {
         let capturedPiece = this.getPieceAt(to.x, to.y);
         let hasMovedBefore = 'hasMoved' in piece ? piece.hasMoved as boolean : undefined;
         let capturedPawnPosition: Coordinate | undefined = undefined;
-        let castlingRights = {...this.castlingRights};
+        let castlingRights: CastlingRights = {...this.castlingRights};
 
         if (
             this.enPassantSquare && isEnPassant
@@ -432,7 +432,9 @@ export class Board {
     }
 
     undoMove(snapshot: MoveSnapshot) {
-        const { piece, from, to, capturedPiece, enPassantSquare, capturedPawnPosition, hasMovedBefore, castlingSide } = snapshot;
+        const { piece, from, to, capturedPiece, enPassantSquare, capturedPawnPosition, hasMovedBefore, castlingSide, castlingRights } = snapshot;
+
+        this.castlingRights = castlingRights;
 
         if (this.isPawnOnPromotionSquare(piece)) {
             const promotedPiece = this.piecesPosition[to.y][to.x]!;

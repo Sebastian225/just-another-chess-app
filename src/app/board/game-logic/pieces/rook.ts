@@ -22,12 +22,20 @@ export class Rook extends Piece {
             while (isInBounds(targetPosition)) {
                 const targetPiece = board.getPieceAt(targetPosition.x, targetPosition.y);
 
-                if (!targetPiece || targetPiece.color !== this.color) {
+                if (!targetPiece) {
                     result.push({
                         piece: this,
                         from: {...this.position},
                         to: targetPosition
                     });
+                }
+                else if (targetPiece.color !== this.color) {
+                    result.push({
+                        piece: this,
+                        from: {...this.position},
+                        to: targetPosition
+                    });
+                    break;
                 }
                 else {
                     break;
