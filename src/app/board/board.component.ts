@@ -15,6 +15,15 @@ export class BoardComponent{
 
     constructor () {
         this.board = new Board();
+
+        // bug daca iei nebunul cu regina
+        //
+        // this.board = new Board('1rbq1knr/pppp1ppp/4p3/8/2BPP3/5N2/2P2PPP/b2QK2R w KQkq - 0 1'); 
+        //
+        // bug cand dai sah cu tura la g8 se blocheaza nu e mat nici nu zice ca e mat nici nu muta
+        //
+        // this.board = new Board('r1b1k3/1pp5/p4Q2/3p4/3n4/P1P2P2/5P1P/6RK w KQkq - 0 1');
+        
         this.resetHighlights();
     }
 
@@ -27,6 +36,8 @@ export class BoardComponent{
         x: 0,
         y: 0
     }
+
+    playerColor: PlayerColor = PlayerColor.WHITE;
 
     getSquareColor(x: number, y: number): string {
         return (x + y) % 2 === 0 ? 'white' : 'black';
@@ -77,12 +88,24 @@ export class BoardComponent{
                 this.displayPromotionPicker(event.clientX, event.clientY);
             }
             else {
-                this.board.makeMove(move, true)
+                this.board.makeMove(move, true);
             }
         }
 
         this.draggedPiece = null;
         this.resetHighlights();
+
+        if (move) {
+            this.highlightMove(move);
+            setTimeout(() => {
+                const blackMove = this.board.findBestMove(4, PlayerColor.BLACK);
+                if (blackMove) {
+                    this.board.makeMove(blackMove, true);
+                    this.resetHighlights();
+                    this.highlightMove(blackMove);
+                }
+            }, 10);
+        }
     }
 
     private moveBackup: Move | null = null;
@@ -106,6 +129,11 @@ export class BoardComponent{
 
     resetHighlights() {
         this.highlightedSqares = Array(8).fill(null).map(() => Array(8).fill(false));
+    }
+
+    private highlightMove(move: Move): void {
+        this.highlightedSqares[move.from.x][move.from.y] = true;
+        this.highlightedSqares[move.to.x][move.to.y] = true;
     }
 
     switchSides() {

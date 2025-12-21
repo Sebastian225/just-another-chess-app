@@ -72,15 +72,13 @@ export const pieceTypeToString = (type: PieceTypes): string => {
     }
 };
 
-export const pieceTypeToValue = (type: PieceTypes): number => {
-    switch (type) {
-        case PieceTypes.PAWN: return 1;
-        case PieceTypes.KNIGHT: return 3;
-        case PieceTypes.BISHOP: return 3;
-        case PieceTypes.ROOK: return 5;
-        case PieceTypes.QUEEN: return 9;
-        case PieceTypes.KING: return 100;
-    }
+export const PIECE_VALUES: Record<PieceTypes, number> = {
+    [PieceTypes.PAWN]: 100,
+    [PieceTypes.KNIGHT]: 320,
+    [PieceTypes.BISHOP]: 330,
+    [PieceTypes.ROOK]: 500,
+    [PieceTypes.QUEEN]: 900,
+    [PieceTypes.KING]: 20000,
 };
 
 export const playerColorToString = (color: PlayerColor): string =>

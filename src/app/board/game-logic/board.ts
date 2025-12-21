@@ -2,9 +2,10 @@ import { Bishop } from "./pieces/bishop";
 import { King } from "./pieces/king";
 import { Knight } from "./pieces/knight";
 import { Pawn } from "./pieces/pawn";
-import { IPiece, PlayerColor, Coordinate, PieceTypes, isInBounds, isEqual, Piece } from "./pieces/piece";
+import { IPiece, PlayerColor, Coordinate, PieceTypes, isInBounds, isEqual, Piece, PIECE_VALUES } from "./pieces/piece";
 import { Queen } from "./pieces/queen";
 import { Rook } from "./pieces/rook";
+import { Constants, getPieceTable } from "./utils/constants";
 
 export class Board {
     readonly size = 8;
@@ -20,7 +21,6 @@ export class Board {
     }
 
     private fiftyMovesCounter: number = 0;
-    private playerColor: PlayerColor = PlayerColor.WHITE;
 
     constructor(fen?: string) {
         if (fen) {
@@ -145,6 +145,17 @@ export class Board {
         return legalMoves;
     }
 
+    getLegalMovesForSide(color: PlayerColor): Move[] {
+        let result: Move[] = [];
+
+        const pieces = this.pieces.filter(p => p.color == color);
+        for (let p of pieces) {
+            result = result.concat(this.getLegalMoves(p));
+        }
+
+        return result;
+    }
+
     private getCastleRookSquare(king: King, side: CastlingSide): Coordinate {
         return {
             x: side === CastlingSide.KINGSIDE ? 7 : 0,
@@ -166,6 +177,7 @@ export class Board {
         let hasMovedBefore = 'hasMoved' in piece ? piece.hasMoved as boolean : undefined;
         let capturedPawnPosition: Coordinate | undefined = undefined;
         let castlingRights: CastlingRights = {...this.castlingRights};
+        let enPassantSquare: Coordinate | null = this.enPassantSquare ? {...this.enPassantSquare} : null;
 
         if (
             this.enPassantSquare && isEnPassant
@@ -269,7 +281,7 @@ export class Board {
             to,
             capturedPiece,
             capturedPawnPosition,
-            enPassantSquare: this.enPassantSquare,
+            enPassantSquare,
             castlingSide,
             hasMovedBefore,
             castlingRights
@@ -516,6 +528,106 @@ export class Board {
         return key;
     }
 
+    private getTotalMaterial(): number {
+        let total = 0;
+
+        for (const piece of this.pieces) {
+            if (piece.type !== PieceTypes.KING) {
+                total += PIECE_VALUES[piece.type];
+            }
+        }
+
+        return total;
+    }
+
+    evaluate(): number {
+        let score = 0;
+        const isEndgame = this.getTotalMaterial() <= Constants.EndgameMaterialLimit;
+
+        for (const piece of this.pieces) {
+            const value = PIECE_VALUES[piece.type];
+            score += piece.color === PlayerColor.WHITE ? value : -value;
+
+            const pieceTable = getPieceTable(piece.type, isEndgame);
+            const tableValue = piece.color === PlayerColor.WHITE ? 
+                pieceTable[piece.position.y][piece.position.x] : pieceTable[7 - piece.position.y][piece.position.x];
+            score += piece.color === PlayerColor.WHITE ? tableValue : -tableValue;
+        }
+    
+        return score;
+    }
+
+    minimax(depth: number, alpha: number, beta: number, maximizing: boolean): number {
+        if (this.isThreefoldRepetition()) {
+            return 0;
+        }
+        if (this.hasInsufficientMaterial()) {
+            return 0;
+        }
+
+        if (depth === 0) {
+            return this.evaluate();
+        }
+
+        const color = maximizing ? PlayerColor.WHITE : PlayerColor.BLACK;
+        const moves = this.getLegalMovesForSide(color);
+
+        if (moves.length === 0) {
+            if (this.isKingInCheck(color)) {
+                return maximizing ? -Infinity : Infinity;
+            }
+            return 0;
+        }
+
+        if (maximizing) {
+            let value = -Infinity;
+            for (const move of moves) {
+                const snap = this.makeMove(move);
+                value = Math.max(value,
+                    this.minimax(depth - 1, alpha, beta, false)
+                );
+                this.undoMove(snap);
+
+                alpha = Math.max(alpha, value);
+                if (alpha >= beta) break;
+            }
+            return value;
+        } else {
+            let value = Infinity;
+            for (const move of moves) {
+                const snap = this.makeMove(move);
+                value = Math.min(value,
+                    this.minimax(depth - 1, alpha, beta, true)
+                );
+                this.undoMove(snap);
+
+                beta = Math.min(beta, value);
+                if (beta <= alpha) break;
+            }
+            return value;
+        }
+    }
+
+    findBestMove(depth: number, color: PlayerColor): Move | null {
+        let bestMove: Move | null = null;
+        let bestScore = color === PlayerColor.WHITE ? -Infinity : Infinity;
+
+        for (const move of this.getLegalMovesForSide(color)) {
+            const snap = this.makeMove(move);
+            const score = this.minimax(depth - 1, -Infinity, Infinity, color !== PlayerColor.WHITE);
+            this.undoMove(snap);
+
+            if (
+                (color === PlayerColor.WHITE && score > bestScore) ||
+                (color === PlayerColor.BLACK && score < bestScore)
+            ) {
+                bestScore = score;
+                bestMove = move;
+            }
+        }
+
+        return bestMove;
+    }
 
     loadFromFEN(fen: string): void {
         this.pieces = [];
