@@ -15,6 +15,7 @@
             (drop)="onDrop($event, x, y)"
         >
             <span class="highlight" *ngIf="this.highlightedSqares[x][y]"></span>
+            <span class="highlight last-move" *ngIf="this.isSquareInLastMove(x,y)"></span>
             <img
                 *ngIf="getPieceAt(x, y)"
                 [src]="getPieceAt(x, y)!.imageSrc"

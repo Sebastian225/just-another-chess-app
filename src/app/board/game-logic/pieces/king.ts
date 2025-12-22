@@ -33,7 +33,8 @@ export class King extends Piece {
                 result.push({
                     piece: this,
                     from: {...this.position},
-                    to: targetPosition
+                    to: targetPosition,
+                    isCapture: targetPiece !== null
                 });
             }
         }

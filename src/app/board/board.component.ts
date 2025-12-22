@@ -1,6 +1,6 @@
 import { Component, Input, OnInit } from '@angular/core';
 import { Board, Move } from './game-logic/board';
-import { IPiece, PieceTypes, PlayerColor } from './game-logic/pieces/piece';
+import { Coordinate, IPiece, PieceTypes, PlayerColor } from './game-logic/pieces/piece';
 import { CommonModule } from '@angular/common';
 import { PromotionPickerComponent } from './promotion-picker/promotion-picker.component';
 
@@ -14,7 +14,7 @@ import { PromotionPickerComponent } from './promotion-picker/promotion-picker.co
 export class BoardComponent{
 
     constructor () {
-        this.board = new Board();
+        //this.board = new Board();
 
         // bug daca iei nebunul cu regina
         //
@@ -23,8 +23,23 @@ export class BoardComponent{
         // bug cand dai sah cu tura la g8 se blocheaza nu e mat nici nu zice ca e mat nici nu muta
         //
         // this.board = new Board('r1b1k3/1pp5/p4Q2/3p4/3n4/P1P2P2/5P1P/6RK w KQkq - 0 1');
+        //
+        // bug cand promoveaza ai
+        // ramane pion pe penultimul rank si el tot spawneaza piese acolo
+        // 
+        this.board  = new Board('rnbqkbnr/1ppppppp/8/8/8/p7/2PPPPPP/N1BQKBNR w KQkq - 0 1');
         
-        this.resetHighlights();
+        this.resetLegalMoveHighlights();
+        this.lastMoveHighlight = {
+            to: {
+                x: -1,
+                y: -1
+            },
+            from: {
+                x: -1,
+                y: -1
+            }
+        }
     }
 
     board: Board;
@@ -39,8 +54,18 @@ export class BoardComponent{
 
     playerColor: PlayerColor = PlayerColor.WHITE;
 
+    lastMoveHighlight: {
+        to: Coordinate,
+        from: Coordinate
+    };
+
     getSquareColor(x: number, y: number): string {
         return (x + y) % 2 === 0 ? 'white' : 'black';
+    }
+
+    isSquareInLastMove(x: number, y: number): boolean {
+        return x == this.lastMoveHighlight.to.x && y == this.lastMoveHighlight.to.y ||
+            x == this.lastMoveHighlight.from.x && y == this.lastMoveHighlight.from.y;
     }
 
     getPieceAt(x: number, y: number): IPiece | null {
@@ -58,8 +83,6 @@ export class BoardComponent{
         for (let move of availableMoves) {
             this.highlightedSqares[move.to.x][move.to.y] = true;
         }
-
-        //console.log(this.highlightedSqares)
 
         event.dataTransfer?.setData('text/plain', JSON.stringify({ x, y }));
     }
@@ -90,22 +113,44 @@ export class BoardComponent{
             else {
                 this.board.makeMove(move, true);
             }
+
+            this.highlightLastMove(move);
+            this.playSound(move);
         }
 
         this.draggedPiece = null;
-        this.resetHighlights();
+        this.resetLegalMoveHighlights();
 
-        if (move) {
-            this.highlightMove(move);
+        if (move) { // TODO use web worker for ai moves
             setTimeout(() => {
                 const blackMove = this.board.findBestMove(4, PlayerColor.BLACK);
                 if (blackMove) {
                     this.board.makeMove(blackMove, true);
-                    this.resetHighlights();
-                    this.highlightMove(blackMove);
+                    this.highlightLastMove(blackMove);
+                    this.playSound(blackMove);
                 }
-            }, 10);
+            }, 12);
         }
+    }
+
+    private getAudioSrc(move: Move): string {
+        if (move.isCapture) {
+            return 'sounds/capture.mp3'
+        }
+        if (move.isCastling !== undefined) {
+            return 'sounds/castle.mp3';
+        }
+        if (move.promotion !== undefined) {
+            return 'sounds/promote.mp3';
+        }
+        return 'sounds/move-self.mp3';
+    }
+
+    private playSound(move: Move) {
+        const audio = new Audio();
+        audio.src = this.getAudioSrc(move);
+        audio.load();
+        audio.play();
     }
 
     private moveBackup: Move | null = null;
@@ -127,13 +172,15 @@ export class BoardComponent{
         this.promotionPickerVisible = false;
     }
 
-    resetHighlights() {
+    private resetLegalMoveHighlights() {
         this.highlightedSqares = Array(8).fill(null).map(() => Array(8).fill(false));
     }
 
-    private highlightMove(move: Move): void {
-        this.highlightedSqares[move.from.x][move.from.y] = true;
-        this.highlightedSqares[move.to.x][move.to.y] = true;
+    private highlightLastMove(move: Move): void {
+        this.lastMoveHighlight = {
+            to: move.to,
+            from: move.from
+        }
     }
 
     switchSides() {
@@ -142,7 +189,7 @@ export class BoardComponent{
 
     restart() {
         this.board = new Board();
-        this.resetHighlights();
+        this.resetLegalMoveHighlights();
     }
 
     private getPawnPromotionRank(color: PlayerColor): number {

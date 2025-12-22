@@ -29,6 +29,10 @@
         display: inline-block;
         z-index: 2;
         position: absolute;
+
+        &.last-move {
+            background-color: #bd2f2f75
+        }
     }
 
     .piece {

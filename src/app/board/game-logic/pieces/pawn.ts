@@ -46,11 +46,11 @@ export class Pawn extends Piece {
             }
             const target = board.getPieceAt(targetPosition.x, targetPosition.y);
             if (target && target.color !== this.color) {
-                result.push(...this.checkAndAddPromotions(targetPosition)); 
+                result.push(...this.checkAndAddPromotions(targetPosition, false, true)); 
             }
 
             if (!target && board.enPassantSquare && board.enPassantSquare.x == targetPosition.x && board.enPassantSquare.y == targetPosition.y) {
-                result.push(...this.checkAndAddPromotions(targetPosition, true)); 
+                result.push(...this.checkAndAddPromotions(targetPosition, true, true)); 
             }
         }
 
@@ -73,7 +73,7 @@ export class Pawn extends Piece {
         return false;
     }
 
-    private checkAndAddPromotions(destination: Coordinate, isEnPassant?: boolean): Move[] {
+    private checkAndAddPromotions(destination: Coordinate, isEnPassant?: boolean, isCapture?: boolean): Move[] {
         let result: Move[] = [];
 
         if (!this.isPromotionSquare(destination)){
@@ -81,7 +81,8 @@ export class Pawn extends Piece {
                 piece: this,
                 from: {...this.position},
                 to: destination,
-                isEnPassant: isEnPassant
+                isEnPassant: isEnPassant,
+                isCapture: isCapture
             });
 
             return result;

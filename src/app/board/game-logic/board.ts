@@ -284,7 +284,8 @@ export class Board {
             enPassantSquare,
             castlingSide,
             hasMovedBefore,
-            castlingRights
+            castlingRights,
+            promotionPiece
         };
         
         return snapshot;
@@ -444,13 +445,12 @@ export class Board {
     }
 
     undoMove(snapshot: MoveSnapshot) {
-        const { piece, from, to, capturedPiece, enPassantSquare, capturedPawnPosition, hasMovedBefore, castlingSide, castlingRights } = snapshot;
+        const { piece, from, to, capturedPiece, enPassantSquare, capturedPawnPosition, hasMovedBefore, castlingSide, castlingRights, promotionPiece } = snapshot;
 
         this.castlingRights = castlingRights;
 
-        if (this.isPawnOnPromotionSquare(piece)) {
-            const promotedPiece = this.piecesPosition[to.y][to.x]!;
-            this.removePiece(promotedPiece);
+        if (promotionPiece) {
+            this.removePiece(promotionPiece);
         }
 
         this.piecesPosition[to.y][to.x] = null;
@@ -750,6 +750,8 @@ export type Move = {
     promotion?: PieceTypes;
     isEnPassant?: boolean;
     isCastling?: boolean;
+    isCheck?: boolean;
+    isCapture?: boolean;
 };
 
 type MoveSnapshot = {
@@ -762,7 +764,8 @@ type MoveSnapshot = {
     hasMovedBefore?: boolean;
     castlingSide? : CastlingSide | null;
     castlingRights: CastlingRights;
-}; //add promotion?
+    promotionPiece: IPiece | null;
+};
 
 type CastlingRights = {
     whiteKingSide: boolean,
